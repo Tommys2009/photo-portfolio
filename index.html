@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portfolio</title>
+<style>
+  :root {
+    --spring: cubic-bezier(0.34, 1.4, 0.4, 1);
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+    --bg-0: #eef0f4;
+    --bg-1: #e6e9ef;
+    --page-tint-a: #cfe3ff;
+    --page-tint-b: #ffd9ec;
+    --page-tint-c: #d6fff1;
+
+    --glass-1: rgba(255,255,255,0.42);
+    --glass-2: rgba(255,255,255,0.62);
+    --glass-3: rgba(255,255,255,0.8);
+    --glass-border: rgba(255,255,255,0.55);
+    --glass-sheen: rgba(255,255,255,0.75);
+    --glass-blur: 24px;
+
+    --ink: #1c1c1e;
+    --ink-dim: rgba(28,28,30,0.58);
+    --ink-faint: rgba(28,28,30,0.38);
+    --accent: #0a84ff;
+    --accent-soft: rgba(10,132,255,0.16);
+    --danger: #ff453a;
+
+    --shadow-1: 0 1px 3px rgba(20,25,40,0.08);
+    --shadow-2: 0 10px 28px rgba(20,25,40,0.12);
+    --shadow-3: 0 20px 50px rgba(20,25,40,0.18);
+
+    --r-sm: 12px;
+    --r-md: 18px;
+    --r-lg: 28px;
+    --r-pill: 999px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-0: #0e0f13;
+      --bg-1: #16171c;
+      --page-tint-a: #1c3a63;
+      --page-tint-b: #4a2740;
+      --page-tint-c: #1a4038;
+
+      --glass-1: rgba(255,255,255,0.06);
+      --glass-2: rgba(255,255,255,0.10);
+      --glass-3: rgba(255,255,255,0.16);
+      --glass-border: rgba(255,255,255,0.14);
+      --glass-sheen: rgba(255,255,255,0.22);
+
+      --ink: #f2f2f4;
+      --ink-dim: rgba(242,242,244,0.6);
+      --ink-faint: rgba(242,242,244,0.4);
+      --accent: #409cff;
+      --accent-soft: rgba(64,156,255,0.22);
+
+      --shadow-1: 0 1px 3px rgba(0,0,0,0.3);
+      --shadow-2: 0 10px 28px rgba(0,0,0,0.4);
+      --shadow-3: 0 20px 50px rgba(0,0,0,0.55);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  html, body {
+    margin: 0; padding: 0; min-height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(circle at 18% 8%, var(--page-tint-a) 0%, transparent 50%),
+      radial-gradient(circle at 88% 18%, var(--page-tint-b) 0%, transparent 46%),
+      radial-gradient(circle at 30% 92%, var(--page-tint-c) 0%, transparent 50%),
+      var(--bg-0);
+    background-attachment: fixed;
+    overflow-x: hidden;
+    transition: background-color 0.3s var(--ease);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { letter-spacing: -0.02em; }
+
+  .blob {
+    position: fixed; border-radius: 50%; filter: blur(100px); opacity: 0.28;
+    pointer-events: none; z-index: 0; animation: drift 30s ease-in-out infinite alternate;
+  }
+  .blob1 { width: 420px; height: 420px; background: var(--page-tint-a); top: -120px; left: -100px; }
+  .blob2 { width: 380px; height: 380px; background: var(--page-tint-b); bottom: -140px; right: -80px; animation-delay: -10s; }
+  .blob3 { width: 300px; height: 300px; background: var(--page-tint-c); top: 42%; left: 62%; animation-delay: -18s; }
+  @keyframes drift {
+    from { transform: translate(0,0) scale(1); }
+    to { transform: translate(24px,-16px) scale(1.06); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+  }
+
+  .wrap {
+    position: relative; z-index: 1; max-width: 1080px; margin: 0 auto;
+    padding: calc(env(safe-area-inset-top) + 24px) max(24px, env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 80px) max(24px, env(safe-area-inset-left));
+  }
+
+  .navbar {
+    position: sticky; top: 12px; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    flex-wrap: wrap; margin-bottom: 36px;
+    padding: 14px 20px;
+    border-radius: var(--r-pill);
+  }
+  .brand { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .brand h1 {
+    font-size: 19px; font-weight: 600; margin: 0; letter-spacing: -0.01em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .brand p { margin: 0; color: var(--ink-dim); font-size: 13px; }
+
+  .glass {
+    position: relative;
+    background: var(--glass-1);
+    border: 0.5px solid var(--glass-border);
+    backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-2), inset 0 1px 0 var(--glass-sheen);
+    isolation: isolate;
+  }
+  .glass::before {
+    content: "";
+    position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    background: linear-gradient(120deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.08) 22%, rgba(255,255,255,0) 42%);
+    mix-blend-mode: overlay;
+    z-index: 1;
+  }
+  .glass > * { position: relative; z-index: 2; }
+  .navbar.glass { background: var(--glass-2); box-shadow: var(--shadow-1), inset 0 1px 0 var(--glass-sheen); }
+
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  button, .btn {
+    position: relative; overflow: hidden;
+    font-family: inherit; font-size: 14px; font-weight: 500; color: var(--ink);
+    background: var(--glass-2); border: 0.5px solid var(--glass-border);
+    backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%);
+    padding: 10px 16px; border-radius: var(--r-sm); cursor: pointer;
+    transition: transform 0.28s var(--spring), background 0.2s var(--ease), box-shadow 0.2s var(--ease);
+    display: inline-flex; align-items: center; gap: 8px;
+    box-shadow: var(--shadow-1), inset 0 1px 0 var(--glass-sheen);
+    min-height: 40px;
+  }
+  button::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    background: linear-gradient(120deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0) 40%);
+    mix-blend-mode: overlay;
+  }
+  button span { position: relative; z-index: 1; }
+  button:hover { background: var(--glass-3); }
+  button:active { transform: scale(0.96); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.primary {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 30%, transparent), color-mix(in srgb, var(--accent) 14%, transparent));
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--glass-border));
+  }
+  button.danger:hover { background: color-mix(in srgb, var(--danger) 22%, transparent); }
+
+  .share-row { display: flex; gap: 10px; align-items: center; margin-bottom: 28px; padding: 12px 18px; border-radius: var(--r-md); }
+  .share-row input {
+    flex: 1; min-width: 0; background: transparent; border: none; color: var(--ink);
+    font-size: 14px; font-family: inherit; outline: none;
+  }
+  .share-row span { color: var(--ink-dim); font-size: 13px; white-space: nowrap; }
+
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px;
+  }
+  .tile {
+    position: relative; border-radius: var(--r-md); overflow: hidden; aspect-ratio: 1;
+    border: 0.5px solid var(--glass-border);
+    box-shadow: var(--shadow-1), inset 0 1px 0 var(--glass-sheen);
+    cursor: pointer; background: var(--glass-1);
+    transition: transform 0.3s var(--spring), box-shadow 0.3s var(--ease);
+  }
+  .tile:hover { transform: translateY(-3px); box-shadow: var(--shadow-2), inset 0 1px 0 var(--glass-sheen); }
+  .tile:active { transform: scale(0.98); }
+  .tile img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.4s var(--ease); }
+  .tile:hover img { transform: scale(1.04); }
+  .tile .remove {
+    position: absolute; top: 8px; right: 8px; width: 32px; height: 32px; border-radius: var(--r-sm);
+    background: rgba(20,15,35,0.5); border: 0.5px solid rgba(255,255,255,0.35);
+    backdrop-filter: blur(12px); color: #fff; display: flex; align-items: center; justify-content: center;
+    font-size: 15px; opacity: 0; transition: opacity 0.2s var(--ease), transform 0.2s var(--spring); padding: 0;
+  }
+  .tile:hover .remove { opacity: 1; }
+  .tile .remove:active { transform: scale(0.9); }
+
+  .upload-tile {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    color: var(--ink-dim); font-size: 13px; border-style: dashed;
+  }
+  .upload-tile svg { opacity: 0.8; }
+
+  .empty { text-align: center; padding: 90px 20px; color: var(--ink-dim); border-radius: var(--r-lg); }
+  .empty h2 { color: var(--ink); font-weight: 600; margin: 0 0 8px; font-size: 20px; }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(10,10,16,0.4); backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px;
+    animation: fadeIn 0.22s var(--ease);
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .modal {
+    width: 100%; max-width: 380px; padding: 26px; border-radius: var(--r-lg);
+    animation: modalIn 0.32s var(--spring);
+  }
+  @keyframes modalIn { from { opacity: 0; transform: scale(0.94) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+  .modal h3 { margin: 0 0 6px; font-size: 18px; font-weight: 600; }
+  .modal p { margin: 0 0 18px; color: var(--ink-dim); font-size: 14px; line-height: 1.5; }
+  .modal input[type="password"], .modal input[type="text"] {
+    width: 100%; padding: 12px 14px; border-radius: var(--r-sm); border: 0.5px solid var(--glass-border);
+    background: var(--glass-1); color: var(--ink); font-size: 15px; font-family: inherit;
+    outline: none; margin-bottom: 14px;
+  }
+  .modal input:focus { box-shadow: 0 0 0 2px var(--accent-soft); border-color: var(--accent); }
+  .modal .row { display: flex; gap: 10px; }
+  .modal .row button { flex: 1; justify-content: center; }
+  .error-text { color: var(--danger); font-size: 13px; margin: -8px 0 14px; }
+
+  .lightbox {
+    position: fixed; inset: 0; background: rgba(6,6,10,0.75); backdrop-filter: blur(14px);
+    display: flex; align-items: center; justify-content: center; z-index: 60;
+    padding: max(24px, env(safe-area-inset-top)) 24px;
+    animation: fadeIn 0.22s var(--ease);
+  }
+  .lightbox img { max-width: 100%; max-height: 85vh; border-radius: var(--r-md); box-shadow: var(--shadow-3); animation: modalIn 0.32s var(--spring); }
+  .lightbox .close { position: absolute; top: 24px; right: 24px; width: 44px; height: 44px; border-radius: var(--r-sm); }
+
+  .toast {
+    position: fixed; bottom: calc(env(safe-area-inset-bottom) + 24px); left: 50%; transform: translateX(-50%);
+    padding: 11px 18px; font-size: 14px; z-index: 70; opacity: 0; transition: opacity 0.3s var(--ease);
+    pointer-events: none; border-radius: var(--r-pill);
+  }
+  .toast.show { opacity: 1; }
+
+  footer { margin-top: 44px; text-align: center; color: var(--ink-faint); font-size: 12.5px; }
+
+  ::selection { background: var(--accent-soft); }
+</style>
+</head>
+<body>
+
+<div class="blob blob1"></div>
+<div class="blob blob2"></div>
+<div class="blob blob3"></div>
+
+<div class="wrap">
+  <div class="navbar glass">
+    <div class="brand">
+      <h1 id="galleryTitle">Portfolio</h1>
+      <p id="photoCount">Loading…</p>
+    </div>
+    <div class="actions">
+      <button id="editBtn" style="display:none;"><span>Rename gallery</span></button>
+      <button id="ownerBtn" class="primary"><span>Owner sign in</span></button>
+      <button id="uploadBtn" class="primary" style="display:none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V6M5 12l7-7 7 7"/></svg>
+        <span>Upload</span>
+      </button>
+      <button id="lockBtn" style="display:none;"><span>Lock</span></button>
+    </div>
+  </div>
+
+  <div class="glass share-row">
+    <span>Share link</span>
+    <input id="shareUrl" type="text" readonly>
+    <button id="copyBtn"><span>Copy</span></button>
+  </div>
+
+  <div id="gridArea"></div>
+
+  <footer>Photos are stored with this page and load for anyone with the link.</footer>
+</div>
+
+<input type="file" id="fileInput" accept="image/*" multiple style="display:none;">
+
+<div id="toast" class="toast glass"></div>
+
+<script>
+const STORAGE_KEY_PHOTOS = 'gallery:photos';
+const STORAGE_KEY_PIN = 'gallery:pin';
+const STORAGE_KEY_TITLE = 'gallery:title';
+
+let photos = [];
+let isOwner = false;
+let galleryTitle = 'Portfolio';
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function ownerKeyFor() {
+  try {
+    let k = localStorage.getItem('__gallery_owner_flag');
+    return k;
+  } catch(e) { return null; }
+}
+
+function setShareUrl() {
+  document.getElementById('shareUrl').value = window.location.href.split('#')[0];
+}
+
+async function loadTitle() {
+  try {
+    const res = await window.storage.get(STORAGE_KEY_TITLE, true);
+    galleryTitle = res && res.value ? res.value : 'Portfolio';
+  } catch(e) {
+    galleryTitle = 'Portfolio';
+  }
+  document.getElementById('galleryTitle').textContent = galleryTitle;
+}
+
+async function loadPhotos() {
+  try {
+    const res = await window.storage.get(STORAGE_KEY_PHOTOS, true);
+    photos = res && res.value ? JSON.parse(res.value) : [];
+  } catch(e) {
+    photos = [];
+  }
+  renderGrid();
+}
+
+async function savePhotos() {
+  await window.storage.set(STORAGE_KEY_PHOTOS, JSON.stringify(photos), true);
+}
+
+function renderGrid() {
+  const area = document.getElementById('gridArea');
+  const count = document.getElementById('photoCount');
+  count.textContent = photos.length === 0 ? 'No photos yet' :
+    (photos.length + (photos.length === 1 ? ' photo' : ' photos'));
+
+  if (photos.length === 0 && !isOwner) {
+    area.innerHTML = '<div class="glass empty"><h2>Nothing here yet</h2><p>The owner hasn\'t added any photos.</p></div>';
+    return;
+  }
+
+  let html = '<div class="grid">';
+  if (isOwner) {
+    html += `<div class="tile upload-tile glass" id="uploadTile">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 19V6M5 12l7-7 7 7"/></svg>
+      <span>Add photos</span>
+    </div>`;
+  }
+  photos.slice().reverse().forEach((p) => {
+    html += `<div class="tile" data-id="${p.id}">
+      <img src="${p.data}" loading="lazy">
+      ${isOwner ? `<button class="remove" data-remove="${p.id}" aria-label="Remove photo">✕</button>` : ''}
+    </div>`;
+  });
+  html += '</div>';
+  area.innerHTML = html;
+
+  if (isOwner) {
+    document.getElementById('uploadTile').addEventListener('click', () => document.getElementById('fileInput').click());
+    area.querySelectorAll('[data-remove]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        removePhoto(btn.getAttribute('data-remove'));
+      });
+    });
+  }
+  area.querySelectorAll('.tile[data-id]').forEach(tile => {
+    tile.addEventListener('click', () => {
+      const id = tile.getAttribute('data-id');
+      const p = photos.find(x => x.id === id);
+      if (p) openLightbox(p.data);
+    });
+  });
+}
+
+function openLightbox(src) {
+  const overlay = document.createElement('div');
+  overlay.className = 'lightbox';
+  overlay.innerHTML = `<img src="${src}"><button class="close glass" aria-label="Close">✕</button>`;
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelector('.close').addEventListener('click', () => overlay.remove());
+  document.body.appendChild(overlay);
+}
+
+async function removePhoto(id) {
+  photos = photos.filter(p => p.id !== id);
+  renderGrid();
+  try {
+    await savePhotos();
+    toast('Photo removed');
+  } catch(e) {
+    toast('Couldn\'t save — try again');
+  }
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleFiles(fileList) {
+  const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+  if (files.length === 0) return;
+  toast('Uploading…');
+  for (const file of files) {
+    try {
+      let dataUrl = await fileToDataUrl(file);
+      dataUrl = await maybeDownscale(dataUrl);
+      photos.push({ id: Date.now() + '-' + Math.random().toString(36).slice(2), data: dataUrl, name: file.name });
+    } catch(e) {
+      toast('Skipped a file that couldn\'t be read');
+    }
+  }
+  renderGrid();
+  try {
+    await savePhotos();
+    toast('Uploaded');
+  } catch(e) {
+    toast('Some photos were too large to save');
+  }
+}
+
+function maybeDownscale(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const maxDim = 1800;
+      let { width, height } = img;
+      if (width <= maxDim && height <= maxDim) { resolve(dataUrl); return; }
+      const scale = maxDim / Math.max(width, height);
+      const canvas = document.createElement('canvas');
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.88));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+function showModal(html) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal glass">${html}</div>`;
+  document.body.appendChild(overlay);
+  return overlay;
+}
+
+async function handleOwnerClick() {
+  let res;
+  try {
+    res = await window.storage.get(STORAGE_KEY_PIN, true);
+  } catch(e) { res = null; }
+  const pinSet = !!(res && res.value);
+
+  if (!pinSet) {
+    const overlay = showModal(`
+      <h3>Set an owner PIN</h3>
+      <p>This PIN protects uploading. Anyone with the link can still view your gallery.</p>
+      <input type="password" id="newPin" placeholder="Choose a PIN" autocomplete="new-password">
+      <div class="row">
+        <button id="cancelPin"><span>Cancel</span></button>
+        <button id="savePin" class="primary"><span>Set PIN</span></button>
+      </div>
+    `);
+    overlay.querySelector('#cancelPin').addEventListener('click', () => overlay.remove());
+    overlay.querySelector('#savePin').addEventListener('click', async () => {
+      const val = overlay.querySelector('#newPin').value.trim();
+      if (!val) { toast('Enter a PIN first'); return; }
+      await window.storage.set(STORAGE_KEY_PIN, val, true);
+      overlay.remove();
+      setOwnerMode(true);
+      toast('PIN set — you\'re signed in');
+    });
+    overlay.querySelector('#newPin').focus();
+    return;
+  }
+
+  const overlay = showModal(`
+    <h3>Owner sign in</h3>
+    <p>Enter your PIN to upload or remove photos.</p>
+    <input type="password" id="pinInput" placeholder="PIN" autocomplete="current-password">
+    <div class="error-text" id="pinError" style="display:none;">That PIN doesn't match. Try again.</div>
+    <div class="row">
+      <button id="cancelSignin"><span>Cancel</span></button>
+      <button id="submitPin" class="primary"><span>Sign in</span></button>
+    </div>
+  `);
+  const input = overlay.querySelector('#pinInput');
+  const err = overlay.querySelector('#pinError');
+  overlay.querySelector('#cancelSignin').addEventListener('click', () => overlay.remove());
+  const submit = async () => {
+    if (input.value.trim() === res.value) {
+      overlay.remove();
+      setOwnerMode(true);
+      toast('Signed in');
+    } else {
+      err.style.display = 'block';
+    }
+  };
+  overlay.querySelector('#submitPin').addEventListener('click', submit);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+  input.focus();
+}
+
+function setOwnerMode(on) {
+  isOwner = on;
+  try { sessionStorage.setItem('__gallery_owner_session', on ? '1' : ''); } catch(e) {}
+  document.getElementById('ownerBtn').style.display = on ? 'none' : 'inline-flex';
+  document.getElementById('uploadBtn').style.display = on ? 'inline-flex' : 'none';
+  document.getElementById('lockBtn').style.display = on ? 'inline-flex' : 'none';
+  document.getElementById('editBtn').style.display = on ? 'inline-flex' : 'none';
+  renderGrid();
+}
+
+async function handleRename() {
+  const overlay = showModal(`
+    <h3>Rename gallery</h3>
+    <input type="text" id="titleInput" value="${galleryTitle.replace(/"/g, '&quot;')}" placeholder="Gallery name">
+    <div class="row">
+      <button id="cancelTitle"><span>Cancel</span></button>
+      <button id="saveTitle" class="primary"><span>Save</span></button>
+    </div>
+  `);
+  overlay.querySelector('#cancelTitle').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#saveTitle').addEventListener('click', async () => {
+    const val = overlay.querySelector('#titleInput').value.trim() || 'Portfolio';
+    galleryTitle = val;
+    document.getElementById('galleryTitle').textContent = val;
+    overlay.remove();
+    try {
+      await window.storage.set(STORAGE_KEY_TITLE, val, true);
+    } catch(e) {}
+  });
+  overlay.querySelector('#titleInput').focus();
+}
+
+document.getElementById('ownerBtn').addEventListener('click', handleOwnerClick);
+document.getElementById('lockBtn').addEventListener('click', () => { setOwnerMode(false); toast('Locked'); });
+document.getElementById('editBtn').addEventListener('click', handleRename);
+document.getElementById('uploadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', (e) => { handleFiles(e.target.files); e.target.value = ''; });
+document.getElementById('copyBtn').addEventListener('click', async () => {
+  const url = document.getElementById('shareUrl').value;
+  try {
+    await navigator.clipboard.writeText(url);
+    toast('Link copied');
+  } catch(e) {
+    toast('Copy this link manually');
+  }
+});
+
+document.addEventListener('dragover', (e) => { if (isOwner) e.preventDefault(); });
+document.addEventListener('drop', (e) => {
+  if (!isOwner) return;
+  e.preventDefault();
+  if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+});
+
+(async function init() {
+  setShareUrl();
+  await loadTitle();
+  await loadPhotos();
+  try {
+    if (sessionStorage.getItem('__gallery_owner_session') === '1') {
+      setOwnerMode(true);
+    }
+  } catch(e) {}
+})();
+</script>
+
+</body>
+</html>
