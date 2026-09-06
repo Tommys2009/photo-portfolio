@@ -117,6 +117,12 @@
   }
   .brand p { margin: 0; color: var(--ink-dim); font-size: 13px; }
 
+  .owner-corner {
+    position: fixed; left: max(16px, env(safe-area-inset-left)); bottom: max(16px, env(safe-area-inset-bottom));
+    z-index: 30;
+  }
+  .owner-corner button { font-size: 12.5px; padding: 8px 14px; min-height: 34px; }
+
   .glass {
     position: relative;
     background: var(--glass-1);
@@ -163,13 +169,6 @@
     border-color: color-mix(in srgb, var(--accent) 45%, var(--glass-border));
   }
   button.danger:hover { background: color-mix(in srgb, var(--danger) 22%, transparent); }
-
-  .share-row { display: flex; gap: 10px; align-items: center; margin-bottom: 28px; padding: 12px 18px; border-radius: var(--r-md); }
-  .share-row input {
-    flex: 1; min-width: 0; background: transparent; border: none; color: var(--ink);
-    font-size: 14px; font-family: inherit; outline: none;
-  }
-  .share-row span { color: var(--ink-dim); font-size: 13px; white-space: nowrap; }
 
   .grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px;
@@ -261,7 +260,6 @@
     </div>
     <div class="actions">
       <button id="editBtn" style="display:none;"><span>Rename gallery</span></button>
-      <button id="ownerBtn" class="primary"><span>Owner sign in</span></button>
       <button id="uploadBtn" class="primary" style="display:none;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V6M5 12l7-7 7 7"/></svg>
         <span>Upload</span>
@@ -270,15 +268,13 @@
     </div>
   </div>
 
-  <div class="glass share-row">
-    <span>Share link</span>
-    <input id="shareUrl" type="text" readonly>
-    <button id="copyBtn"><span>Copy</span></button>
-  </div>
-
   <div id="gridArea"></div>
 
   <footer>Photos are stored with this page and load for anyone with the link.</footer>
+</div>
+
+<div class="owner-corner">
+  <button id="ownerBtn"><span>Owner sign in</span></button>
 </div>
 
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none;">
@@ -306,10 +302,6 @@ function ownerKeyFor() {
     let k = localStorage.getItem('__gallery_owner_flag');
     return k;
   } catch(e) { return null; }
-}
-
-function setShareUrl() {
-  document.getElementById('shareUrl').value = window.location.href.split('#')[0];
 }
 
 async function loadTitle() {
@@ -554,15 +546,6 @@ document.getElementById('lockBtn').addEventListener('click', () => { setOwnerMod
 document.getElementById('editBtn').addEventListener('click', handleRename);
 document.getElementById('uploadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
 document.getElementById('fileInput').addEventListener('change', (e) => { handleFiles(e.target.files); e.target.value = ''; });
-document.getElementById('copyBtn').addEventListener('click', async () => {
-  const url = document.getElementById('shareUrl').value;
-  try {
-    await navigator.clipboard.writeText(url);
-    toast('Link copied');
-  } catch(e) {
-    toast('Copy this link manually');
-  }
-});
 
 document.addEventListener('dragover', (e) => { if (isOwner) e.preventDefault(); });
 document.addEventListener('drop', (e) => {
@@ -572,7 +555,6 @@ document.addEventListener('drop', (e) => {
 });
 
 (async function init() {
-  setShareUrl();
   await loadTitle();
   await loadPhotos();
   try {
