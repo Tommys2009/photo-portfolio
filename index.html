@@ -117,6 +117,21 @@
   }
   .brand p { margin: 0; color: var(--ink-dim); font-size: 13px; }
 
+  .drop-overlay {
+    position: fixed; inset: 0; z-index: 40; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(10, 20, 40, 0.35); backdrop-filter: blur(6px);
+    pointer-events: none;
+  }
+  .drop-overlay.active { display: flex; }
+  .drop-overlay-card {
+    padding: 36px 48px; border-radius: var(--r-lg); text-align: center;
+    border: 2px dashed var(--accent);
+  }
+  .drop-overlay-card svg { opacity: 0.85; margin-bottom: 10px; }
+  .drop-overlay-card h2 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
+  .drop-overlay-card p { margin: 0; color: var(--ink-dim); font-size: 14px; }
+
   .owner-corner {
     position: fixed; left: max(16px, env(safe-area-inset-left)); bottom: max(16px, env(safe-area-inset-bottom));
     z-index: 30; display: flex; gap: 8px;
@@ -281,6 +296,14 @@
   <div id="gridArea"></div>
 
   <footer>Photos are stored in this site's GitHub repo and load for anyone with the link.</footer>
+</div>
+
+<div class="drop-overlay" id="dropOverlay">
+  <div class="drop-overlay-card glass">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 19V6M5 12l7-7 7 7"/></svg>
+    <h2>Drop to upload</h2>
+    <p>Release anywhere to add these photos</p>
+  </div>
 </div>
 
 <div class="owner-corner">
@@ -710,11 +733,34 @@ document.getElementById('themeBtn').addEventListener('click', handleTheme);
 document.getElementById('uploadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
 document.getElementById('fileInput').addEventListener('change', (e) => { handleFiles(e.target.files); e.target.value = ''; });
 
-document.addEventListener('dragover', (e) => { if (isOwner) e.preventDefault(); });
+let dragDepth = 0;
+const dropOverlay = document.getElementById('dropOverlay');
+
+document.addEventListener('dragenter', (e) => {
+  if (!isOwner) return;
+  e.preventDefault();
+  dragDepth++;
+  dropOverlay.classList.add('active');
+});
+document.addEventListener('dragover', (e) => {
+  if (isOwner) e.preventDefault();
+});
+document.addEventListener('dragleave', (e) => {
+  if (!isOwner) return;
+  e.preventDefault();
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) dropOverlay.classList.remove('active');
+});
 document.addEventListener('drop', (e) => {
   if (!isOwner) return;
   e.preventDefault();
+  dragDepth = 0;
+  dropOverlay.classList.remove('active');
   if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+});
+window.addEventListener('dragend', () => {
+  dragDepth = 0;
+  dropOverlay.classList.remove('active');
 });
 
 (async function init() {
