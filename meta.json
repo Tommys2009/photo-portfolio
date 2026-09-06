@@ -1,0 +1,11 @@
+{
+  "title": "Portfolio",
+  "theme": {
+    "bg0": "#00364a",
+    "bg1": "#16171c",
+    "tintA": "#1c3a63",
+    "tintB": "#4a2740",
+    "tintC": "#1a4038",
+    "accent": "#409cff"
+  }
+}
