@@ -119,7 +119,7 @@
 
   .owner-corner {
     position: fixed; left: max(16px, env(safe-area-inset-left)); bottom: max(16px, env(safe-area-inset-bottom));
-    z-index: 30;
+    z-index: 30; display: flex; gap: 8px;
   }
   .owner-corner button { font-size: 12.5px; padding: 8px 14px; min-height: 34px; }
 
@@ -169,6 +169,7 @@
     border-color: color-mix(in srgb, var(--accent) 45%, var(--glass-border));
   }
   button.danger:hover { background: color-mix(in srgb, var(--danger) 22%, transparent); }
+  button:disabled { opacity: 0.5; cursor: default; }
 
   .grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px;
@@ -209,8 +210,9 @@
   }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   .modal {
-    width: 100%; max-width: 380px; padding: 26px; border-radius: var(--r-lg);
+    width: 100%; max-width: 400px; padding: 26px; border-radius: var(--r-lg);
     animation: modalIn 0.32s var(--spring);
+    max-height: 85vh; overflow-y: auto;
   }
   @keyframes modalIn { from { opacity: 0; transform: scale(0.94) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
   .modal h3 { margin: 0 0 6px; font-size: 18px; font-weight: 600; }
@@ -225,6 +227,13 @@
   .modal .row button { flex: 1; justify-content: center; }
   .error-text { color: var(--danger); font-size: 13px; margin: -8px 0 14px; }
 
+  .color-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 12px; }
+  .color-row label { font-size: 14px; color: var(--ink-dim); }
+  .color-row input[type="color"] {
+    width: 44px; height: 32px; padding: 0; border-radius: 8px; border: 0.5px solid var(--glass-border);
+    background: none; cursor: pointer;
+  }
+
   .lightbox {
     position: fixed; inset: 0; background: rgba(6,6,10,0.75); backdrop-filter: blur(14px);
     display: flex; align-items: center; justify-content: center; z-index: 60;
@@ -237,7 +246,7 @@
   .toast {
     position: fixed; bottom: calc(env(safe-area-inset-bottom) + 24px); left: 50%; transform: translateX(-50%);
     padding: 11px 18px; font-size: 14px; z-index: 70; opacity: 0; transition: opacity 0.3s var(--ease);
-    pointer-events: none; border-radius: var(--r-pill);
+    pointer-events: none; border-radius: var(--r-pill); max-width: 90vw; text-align: center;
   }
   .toast.show { opacity: 1; }
 
@@ -260,6 +269,7 @@
     </div>
     <div class="actions">
       <button id="editBtn" style="display:none;"><span>Rename gallery</span></button>
+      <button id="themeBtn" style="display:none;"><span>Customize</span></button>
       <button id="uploadBtn" class="primary" style="display:none;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V6M5 12l7-7 7 7"/></svg>
         <span>Upload</span>
@@ -270,7 +280,7 @@
 
   <div id="gridArea"></div>
 
-  <footer>Photos are stored with this page and load for anyone with the link.</footer>
+  <footer>Photos are stored in this site's GitHub repo and load for anyone with the link.</footer>
 </div>
 
 <div class="owner-corner">
@@ -282,50 +292,136 @@
 <div id="toast" class="toast glass"></div>
 
 <script>
-const STORAGE_KEY_PHOTOS = 'gallery:photos';
-const STORAGE_KEY_PIN = 'gallery:pin';
-const STORAGE_KEY_TITLE = 'gallery:title';
+const GH_OWNER = 'Tommys2009';
+const GH_REPO = 'photo-portfolio';
+const GH_BRANCH = 'main';
+const API = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}`;
+const RAW = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}`;
+const TOKEN_KEY = 'gh_pat_' + GH_REPO;
 
 let photos = [];
-let isOwner = false;
 let galleryTitle = 'Portfolio';
+let theme = {};
+let isOwner = false;
 
 function toast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2200);
+  setTimeout(() => t.classList.remove('show'), 2600);
 }
 
-function ownerKeyFor() {
+function getToken() {
+  try { return localStorage.getItem(TOKEN_KEY) || null; } catch(e) { return null; }
+}
+function setToken(tok) {
   try {
-    let k = localStorage.getItem('__gallery_owner_flag');
-    return k;
-  } catch(e) { return null; }
+    if (tok) localStorage.setItem(TOKEN_KEY, tok);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch(e) {}
 }
 
-async function loadTitle() {
+function authHeaders() {
+  const tok = getToken();
+  const h = { 'Accept': 'application/vnd.github+json' };
+  if (tok) h['Authorization'] = 'token ' + tok;
+  return h;
+}
+
+async function ghGetFile(path) {
+  const res = await fetch(`${API}/contents/${path}?ref=${GH_BRANCH}&t=${Date.now()}`, { headers: authHeaders() });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('GitHub read failed (' + res.status + ')');
+  return res.json();
+}
+
+async function ghListDir(path) {
+  const res = await fetch(`${API}/contents/${path}?ref=${GH_BRANCH}&t=${Date.now()}`, { headers: authHeaders() });
+  if (res.status === 404) return [];
+  if (!res.ok) throw new Error('GitHub list failed (' + res.status + ')');
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
+async function ghPutFile(path, base64Content, message, sha) {
+  const body = { message, content: base64Content, branch: GH_BRANCH };
+  if (sha) body.sha = sha;
+  const res = await fetch(`${API}/contents/${path}`, {
+    method: 'PUT',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error('GitHub write failed (' + res.status + '): ' + errText.slice(0, 200));
+  }
+  return res.json();
+}
+
+async function ghDeleteFile(path, sha, message) {
+  const res = await fetch(`${API}/contents/${path}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, sha, branch: GH_BRANCH })
+  });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error('GitHub delete failed (' + res.status + '): ' + errText.slice(0, 200));
+  }
+}
+
+function utf8ToBase64(str) {
+  return btoa(unescape(encodeURIComponent(str)));
+}
+function base64ToUtf8(b64) {
+  return decodeURIComponent(escape(atob(b64)));
+}
+
+async function loadMeta() {
   try {
-    const res = await window.storage.get(STORAGE_KEY_TITLE, true);
-    galleryTitle = res && res.value ? res.value : 'Portfolio';
+    const file = await ghGetFile('meta.json');
+    if (file && file.content) {
+      const parsed = JSON.parse(base64ToUtf8(file.content.replace(/\n/g, '')));
+      galleryTitle = parsed.title || 'Portfolio';
+      theme = parsed.theme || {};
+    }
   } catch(e) {
-    galleryTitle = 'Portfolio';
+    console.warn('meta load failed', e);
   }
   document.getElementById('galleryTitle').textContent = galleryTitle;
+  applyTheme();
+}
+
+async function saveMeta() {
+  const existing = await ghGetFile('meta.json').catch(() => null);
+  const content = utf8ToBase64(JSON.stringify({ title: galleryTitle, theme }, null, 2));
+  await ghPutFile('meta.json', content, 'Update meta.json', existing ? existing.sha : undefined);
+}
+
+function applyTheme() {
+  const root = document.documentElement.style;
+  const map = {
+    bg0: '--bg-0', bg1: '--bg-1',
+    tintA: '--page-tint-a', tintB: '--page-tint-b', tintC: '--page-tint-c',
+    accent: '--accent'
+  };
+  Object.entries(map).forEach(([key, cssVar]) => {
+    if (theme[key]) root.setProperty(cssVar, theme[key]);
+  });
 }
 
 async function loadPhotos() {
   try {
-    const res = await window.storage.get(STORAGE_KEY_PHOTOS, true);
-    photos = res && res.value ? JSON.parse(res.value) : [];
+    const files = await ghListDir('photos');
+    photos = files
+      .filter(f => f.type === 'file')
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(f => ({ name: f.name, path: f.path, sha: f.sha, url: `${RAW}/${f.path}?t=${Date.now()}` }));
   } catch(e) {
     photos = [];
+    console.warn('photo list failed', e);
   }
   renderGrid();
-}
-
-async function savePhotos() {
-  await window.storage.set(STORAGE_KEY_PHOTOS, JSON.stringify(photos), true);
 }
 
 function renderGrid() {
@@ -347,9 +443,9 @@ function renderGrid() {
     </div>`;
   }
   photos.slice().reverse().forEach((p) => {
-    html += `<div class="tile" data-id="${p.id}">
-      <img src="${p.data}" loading="lazy">
-      ${isOwner ? `<button class="remove" data-remove="${p.id}" aria-label="Remove photo">✕</button>` : ''}
+    html += `<div class="tile" data-path="${p.path}">
+      <img src="${p.url}" loading="lazy">
+      ${isOwner ? `<button class="remove" data-remove="${p.path}" aria-label="Remove photo">✕</button>` : ''}
     </div>`;
   });
   html += '</div>';
@@ -364,11 +460,11 @@ function renderGrid() {
       });
     });
   }
-  area.querySelectorAll('.tile[data-id]').forEach(tile => {
+  area.querySelectorAll('.tile[data-path]').forEach(tile => {
     tile.addEventListener('click', () => {
-      const id = tile.getAttribute('data-id');
-      const p = photos.find(x => x.id === id);
-      if (p) openLightbox(p.data);
+      const path = tile.getAttribute('data-path');
+      const p = photos.find(x => x.path === path);
+      if (p) openLightbox(p.url);
     });
   });
 }
@@ -382,14 +478,16 @@ function openLightbox(src) {
   document.body.appendChild(overlay);
 }
 
-async function removePhoto(id) {
-  photos = photos.filter(p => p.id !== id);
-  renderGrid();
+async function removePhoto(path) {
+  const p = photos.find(x => x.path === path);
+  if (!p) return;
   try {
-    await savePhotos();
+    await ghDeleteFile(p.path, p.sha, 'Remove photo ' + p.name);
+    photos = photos.filter(x => x.path !== path);
+    renderGrid();
     toast('Photo removed');
   } catch(e) {
-    toast('Couldn\'t save — try again');
+    toast('Couldn\'t remove: ' + e.message);
   }
 }
 
@@ -400,28 +498,6 @@ function fileToDataUrl(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
-}
-
-async function handleFiles(fileList) {
-  const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
-  if (files.length === 0) return;
-  toast('Uploading…');
-  for (const file of files) {
-    try {
-      let dataUrl = await fileToDataUrl(file);
-      dataUrl = await maybeDownscale(dataUrl);
-      photos.push({ id: Date.now() + '-' + Math.random().toString(36).slice(2), data: dataUrl, name: file.name });
-    } catch(e) {
-      toast('Skipped a file that couldn\'t be read');
-    }
-  }
-  renderGrid();
-  try {
-    await savePhotos();
-    toast('Uploaded');
-  } catch(e) {
-    toast('Some photos were too large to save');
-  }
 }
 
 function maybeDownscale(dataUrl) {
@@ -444,6 +520,29 @@ function maybeDownscale(dataUrl) {
   });
 }
 
+async function handleFiles(fileList) {
+  const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+  if (files.length === 0) return;
+  toast('Uploading…');
+  let uploaded = 0;
+  for (const file of files) {
+    try {
+      let dataUrl = await fileToDataUrl(file);
+      dataUrl = await maybeDownscale(dataUrl);
+      const base64 = dataUrl.split(',')[1];
+      const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+      await ghPutFile('photos/' + filename, base64, 'Add photo ' + filename);
+      uploaded++;
+    } catch(e) {
+      toast('Upload failed: ' + e.message);
+    }
+  }
+  if (uploaded > 0) {
+    await loadPhotos();
+    toast(uploaded === 1 ? 'Photo uploaded' : uploaded + ' photos uploaded');
+  }
+}
+
 function showModal(html) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -452,70 +551,66 @@ function showModal(html) {
   return overlay;
 }
 
-async function handleOwnerClick() {
-  let res;
-  try {
-    res = await window.storage.get(STORAGE_KEY_PIN, true);
-  } catch(e) { res = null; }
-  const pinSet = !!(res && res.value);
+async function verifyToken(token) {
+  const res = await fetch(API, { headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github+json' } });
+  if (!res.ok) return { ok: false, reason: 'Token was rejected by GitHub.' };
+  const data = await res.json();
+  if (data.permissions && data.permissions.push) return { ok: true };
+  return { ok: false, reason: 'This token doesn\'t have write access to this repo.' };
+}
 
-  if (!pinSet) {
-    const overlay = showModal(`
-      <h3>Set an owner PIN</h3>
-      <p>This PIN protects uploading. Anyone with the link can still view your gallery.</p>
-      <input type="password" id="newPin" placeholder="Choose a PIN" autocomplete="new-password">
-      <div class="row">
-        <button id="cancelPin"><span>Cancel</span></button>
-        <button id="savePin" class="primary"><span>Set PIN</span></button>
-      </div>
-    `);
-    overlay.querySelector('#cancelPin').addEventListener('click', () => overlay.remove());
-    overlay.querySelector('#savePin').addEventListener('click', async () => {
-      const val = overlay.querySelector('#newPin').value.trim();
-      if (!val) { toast('Enter a PIN first'); return; }
-      await window.storage.set(STORAGE_KEY_PIN, val, true);
-      overlay.remove();
-      setOwnerMode(true);
-      toast('PIN set — you\'re signed in');
-    });
-    overlay.querySelector('#newPin').focus();
-    return;
-  }
-
+function handleOwnerClick() {
   const overlay = showModal(`
     <h3>Owner sign in</h3>
-    <p>Enter your PIN to upload or remove photos.</p>
-    <input type="password" id="pinInput" placeholder="PIN" autocomplete="current-password">
-    <div class="error-text" id="pinError" style="display:none;">That PIN doesn't match. Try again.</div>
+    <p>Paste a GitHub personal access token with write access to the <b>${GH_OWNER}/${GH_REPO}</b> repo. It's stored only on this device and is what lets you upload, delete, and customize.</p>
+    <input type="password" id="tokenInput" placeholder="ghp_..." autocomplete="off">
+    <div class="error-text" id="tokenError" style="display:none;"></div>
     <div class="row">
       <button id="cancelSignin"><span>Cancel</span></button>
-      <button id="submitPin" class="primary"><span>Sign in</span></button>
+      <button id="submitToken" class="primary"><span>Sign in</span></button>
     </div>
   `);
-  const input = overlay.querySelector('#pinInput');
-  const err = overlay.querySelector('#pinError');
+  const input = overlay.querySelector('#tokenInput');
+  const err = overlay.querySelector('#tokenError');
+  const submitBtn = overlay.querySelector('#submitToken');
   overlay.querySelector('#cancelSignin').addEventListener('click', () => overlay.remove());
   const submit = async () => {
-    if (input.value.trim() === res.value) {
+    const val = input.value.trim();
+    if (!val) { err.textContent = 'Paste a token first.'; err.style.display = 'block'; return; }
+    submitBtn.disabled = true;
+    submitBtn.querySelector('span').textContent = 'Checking...';
+    try {
+      const result = await verifyToken(val);
+      if (!result.ok) {
+        err.textContent = result.reason;
+        err.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.querySelector('span').textContent = 'Sign in';
+        return;
+      }
+      setToken(val);
       overlay.remove();
       setOwnerMode(true);
       toast('Signed in');
-    } else {
+    } catch(e) {
+      err.textContent = 'Could not reach GitHub: ' + e.message;
       err.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.querySelector('span').textContent = 'Sign in';
     }
   };
-  overlay.querySelector('#submitPin').addEventListener('click', submit);
+  submitBtn.addEventListener('click', submit);
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
   input.focus();
 }
 
 function setOwnerMode(on) {
   isOwner = on;
-  try { sessionStorage.setItem('__gallery_owner_session', on ? '1' : ''); } catch(e) {}
   document.getElementById('ownerBtn').style.display = on ? 'none' : 'inline-flex';
   document.getElementById('uploadBtn').style.display = on ? 'inline-flex' : 'none';
   document.getElementById('lockBtn').style.display = on ? 'inline-flex' : 'none';
   document.getElementById('editBtn').style.display = on ? 'inline-flex' : 'none';
+  document.getElementById('themeBtn').style.display = on ? 'inline-flex' : 'none';
   renderGrid();
 }
 
@@ -523,6 +618,7 @@ async function handleRename() {
   const overlay = showModal(`
     <h3>Rename gallery</h3>
     <input type="text" id="titleInput" value="${galleryTitle.replace(/"/g, '&quot;')}" placeholder="Gallery name">
+    <div class="error-text" id="renameError" style="display:none;"></div>
     <div class="row">
       <button id="cancelTitle"><span>Cancel</span></button>
       <button id="saveTitle" class="primary"><span>Save</span></button>
@@ -531,19 +627,86 @@ async function handleRename() {
   overlay.querySelector('#cancelTitle').addEventListener('click', () => overlay.remove());
   overlay.querySelector('#saveTitle').addEventListener('click', async () => {
     const val = overlay.querySelector('#titleInput').value.trim() || 'Portfolio';
+    const prev = galleryTitle;
     galleryTitle = val;
     document.getElementById('galleryTitle').textContent = val;
-    overlay.remove();
     try {
-      await window.storage.set(STORAGE_KEY_TITLE, val, true);
-    } catch(e) {}
+      await saveMeta();
+      overlay.remove();
+      toast('Saved');
+    } catch(e) {
+      galleryTitle = prev;
+      document.getElementById('galleryTitle').textContent = prev;
+      overlay.querySelector('#renameError').textContent = 'Save failed: ' + e.message;
+      overlay.querySelector('#renameError').style.display = 'block';
+    }
   });
   overlay.querySelector('#titleInput').focus();
+}
+
+function currentThemeValue(key, fallback) {
+  return theme[key] || getComputedStyle(document.documentElement).getPropertyValue(fallback).trim() || '#000000';
+}
+
+async function handleTheme() {
+  const fields = [
+    { key: 'bg0', label: 'Page background', cssVar: '--bg-0' },
+    { key: 'bg1', label: 'Page background (alt)', cssVar: '--bg-1' },
+    { key: 'tintA', label: 'Glow tint 1', cssVar: '--page-tint-a' },
+    { key: 'tintB', label: 'Glow tint 2', cssVar: '--page-tint-b' },
+    { key: 'tintC', label: 'Glow tint 3', cssVar: '--page-tint-c' },
+    { key: 'accent', label: 'Accent color', cssVar: '--accent' }
+  ];
+  const rowsHtml = fields.map(f => `
+    <div class="color-row">
+      <label for="c_${f.key}">${f.label}</label>
+      <input type="color" id="c_${f.key}" value="${toHex(currentThemeValue(f.key, f.cssVar))}">
+    </div>
+  `).join('');
+  const overlay = showModal(`
+    <h3>Customize appearance</h3>
+    <p>Changes preview live and save to this site's repo once you hit save.</p>
+    ${rowsHtml}
+    <div class="error-text" id="themeError" style="display:none;"></div>
+    <div class="row">
+      <button id="cancelTheme"><span>Cancel</span></button>
+      <button id="saveTheme" class="primary"><span>Save</span></button>
+    </div>
+  `);
+  fields.forEach(f => {
+    overlay.querySelector('#c_' + f.key).addEventListener('input', (e) => {
+      document.documentElement.style.setProperty(f.cssVar, e.target.value);
+    });
+  });
+  overlay.querySelector('#cancelTheme').addEventListener('click', () => {
+    applyTheme();
+    overlay.remove();
+  });
+  overlay.querySelector('#saveTheme').addEventListener('click', async () => {
+    fields.forEach(f => { theme[f.key] = overlay.querySelector('#c_' + f.key).value; });
+    try {
+      await saveMeta();
+      overlay.remove();
+      toast('Appearance saved');
+    } catch(e) {
+      overlay.querySelector('#themeError').textContent = 'Save failed: ' + e.message;
+      overlay.querySelector('#themeError').style.display = 'block';
+    }
+  });
+}
+
+function toHex(color) {
+  if (color.startsWith('#')) return color;
+  const m = color.match(/rgba?\(([^)]+)\)/);
+  if (!m) return '#000000';
+  const parts = m[1].split(',').map(s => parseInt(s.trim(), 10));
+  return '#' + parts.slice(0, 3).map(n => n.toString(16).padStart(2, '0')).join('');
 }
 
 document.getElementById('ownerBtn').addEventListener('click', handleOwnerClick);
 document.getElementById('lockBtn').addEventListener('click', () => { setOwnerMode(false); toast('Locked'); });
 document.getElementById('editBtn').addEventListener('click', handleRename);
+document.getElementById('themeBtn').addEventListener('click', handleTheme);
 document.getElementById('uploadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
 document.getElementById('fileInput').addEventListener('change', (e) => { handleFiles(e.target.files); e.target.value = ''; });
 
@@ -555,13 +718,16 @@ document.addEventListener('drop', (e) => {
 });
 
 (async function init() {
-  await loadTitle();
+  await loadMeta();
   await loadPhotos();
-  try {
-    if (sessionStorage.getItem('__gallery_owner_session') === '1') {
-      setOwnerMode(true);
-    }
-  } catch(e) {}
+  const tok = getToken();
+  if (tok) {
+    try {
+      const result = await verifyToken(tok);
+      if (result.ok) setOwnerMode(true);
+      else setToken(null);
+    } catch(e) {}
+  }
 })();
 </script>
 
